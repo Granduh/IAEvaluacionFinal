@@ -56,11 +56,9 @@ def nube_words(df, fecha):
     text = remove_punctuation(text)
     text = regex_word(text)
     # Usa la fuente local descargada desde Google Fonts
-    font_path = 'fonts/Roboto-Regular.ttf'  # Cambia el nombre si usas otra fuente
     wordcloud = WordCloud(
         stopwords=STOPWORDS,
         background_color='white',
-        font_path=font_path,
         width=1600,  # mayor resolución horizontal
         height=800,  # mayor resolución vertical
         scale=2      # escala interna para más nitidez
