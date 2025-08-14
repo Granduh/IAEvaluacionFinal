@@ -3,9 +3,13 @@ import pandas as pd
 
 def date_chat(line):
     # Soporta fechas tipo: 7/26/25, 4:53 PM - ... (con espacio normal o especial)
-    pattern = r'^(\d{1,2}/\d{1,2}/\d{2}),?\s\d{1,2}:\d{2}(?:\s|\u202f|\u2009|\u200a|\u200b|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200a|\u202f|\u205f|\u3000)[AP]M\s-'
-    result = re.match(pattern, line)
-    return bool(result)
+        # Soporta fechas tipo inglés: 7/26/25, 4:53 PM - ...
+        pattern_en = r'^(\d{1,2}/\d{1,2}/\d{2}),?\s\d{1,2}:\d{2}(?:\s|\u202f|\u2009|\u200a|\u200b|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200a|\u202f|\u205f|\u3000)[AP]M\s-'
+        # Soporta fechas tipo español: 12/6/2024, 8:15 p. m. - ...
+        pattern_es = r'^(\d{1,2}/\d{1,2}/\d{4}),?\s\d{1,2}:\d{2}(?:\s|\u202f|\u2009|\u200a|\u200b|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200a|\u202f|\u205f|\u3000)p\.\u202fm\.\s-'
+        # También soporta p. m. y a. m. con o sin espacios
+        pattern_es2 = r'^(\d{1,2}/\d{1,2}/\d{4}),?\s\d{1,2}:\d{2}(?:\s|\u202f|\u2009|\u200a|\u200b|\u2002|\u2003|\u2004|\u2005|\u2006|\u2007|\u2008|\u2009|\u200a|\u202f|\u205f|\u3000)[ap]\.\s?m\.\s-'
+        return bool(re.match(pattern_en, line) or re.match(pattern_es, line) or re.match(pattern_es2, line))
 
 def is_author(line):
     # Detecta nombres (con caracteres especiales y emojis) y números de teléfono seguidos de ':'
@@ -19,11 +23,37 @@ def data_point(line):
     dt = split_line[0]
     date_time = dt.split(', ')
     date = date_time[0]
-    # Soporta espacios especiales después de la hora
-    time_format = re.split(r'[ \u202f\u2009\u200a\u200b\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000]', date_time[1])
-    time = time_format[0]
-    fmt = time_format[1]
     message = split_line[1] if len(split_line) > 1 else ''
+    # Detectar formato inglés o español
+    # Inglés: 1/7/25, 11:26 AM
+    # Español: 12/6/2024, 8:15 p. m.
+    if re.match(r'\d{1,2}/\d{1,2}/\d{2},', dt):
+        # Inglés
+        date_time = dt.split(', ')
+        date = date_time[0]
+        time_fmt = date_time[1].split(' ')
+        time = time_fmt[0]
+        fmt = time_fmt[1] if len(time_fmt) > 1 else ''
+    elif re.match(r'\d{1,2}/\d{1,2}/\d{4},', dt):
+        # Español
+        date_time = dt.split(', ')
+        date = date_time[0]
+        # Puede venir como "8:15\u202fp.\u202fm." o "8:15 p. m."
+        time_part = date_time[1]
+        # Quitar espacios unicode
+        time_part = re.sub(r'[\u202f\u2009\u200a\u200b\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000]', ' ', time_part)
+        # Buscar hora y formato
+        match = re.match(r'(\d{1,2}:\d{2})\s*([ap]\.\s?m\.|[ap]\.\u202fm\.)', time_part)
+        if match:
+            time = match.group(1)
+            fmt = match.group(2)
+        else:
+            # fallback: separar por espacio
+            time_fmt = time_part.split(' ')
+            time = time_fmt[0]
+            fmt = ' '.join(time_fmt[1:])
+    else:
+        date = time = fmt = ''
     if is_author(message):
         authormes = message.split(': ', 1)
         author = authormes[0]

@@ -37,7 +37,9 @@ def line_time_member(df, member):
     df_member = df[df['author'] == member].copy()
     # Filtrar mensajes que no sean media omitted
     df_member = df_member[~df_member['message'].str.contains('<Media omitted>|<Multimedia omitido>', case=False, na=False)]
-    df_member['date'] = pd.to_datetime(df_member['date'], format='%m/%d/%y')
+    # Convertir fechas de forma robusta (acepta m/d/yy y d/m/yyyy)
+    df_member['date'] = pd.to_datetime(df_member['date'], dayfirst=True, errors='coerce')
+    df_member = df_member.dropna(subset=['date'])
     df_member['month'] = df_member['date'].dt.month
     df_member['num_day'] = df_member['date'].dt.day
     df_member['date'] = df_member['date'].dt.strftime('%Y-%m-%d')
